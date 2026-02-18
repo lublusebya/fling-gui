@@ -1,281 +1,155 @@
---[[
-    ███████╗██╗     ██╗███╗   ██╗ ██████╗     ██████╗ ██╗   ██╗██╗
-    ██╔════╝██║     ██║████╗  ██║██╔════╝     ██╔══██╗██║   ██║██║
-    █████╗  ██║     ██║██╔██╗ ██║██║  ███╗    ██████╔╝██║   ██║██║
-    ██╔══╝  ██║     ██║██║╚██╗██║██║   ██║    ██╔══██╗██║   ██║██║
-    ██║     ███████╗██║██║ ╚████║╚██████╔╝    ██████╔╝╚██████╔╝██║
-    ╚═╝     ╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝     ╚═════╝  ╚═════╝ ╚═╝
-    made by tensor0101
-    UI: Fluent (красивый и плавный)
-]]
+-- Universal Chat GUI Script (No Censorship)
+-- Creator: tensor0101 (Discord: tensor0101)
 
-repeat task.wait() until game:IsLoaded() and game.Players.LocalPlayer
+local player = game:GetService("Players").LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "ChatGUI"
+gui.Parent = player:WaitForChild("PlayerGui")
 
--- Загрузка Fluent UI
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+-- Основное окно
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 400, 0, 330) -- чуть выше, чтобы поместилась надпись
+frame.Position = UDim2.new(0.5, -200, 0.5, -165)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BackgroundTransparency = 0.2
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
 
-local Window = Fluent:CreateWindow({
-    Title = "Fling GUI | tensor0101",
-    SubTitle = "by tensor0101",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(530, 400),
-    Acrylic = true, -- Плавное размытие
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.RightControl
-})
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = frame
 
--- Переменные
-_G.AutoFling = false
-_G.Selected = nil
-_G.FlingPower = 9999
-_G.FlingMethod = "Vector"
-_G.CustomEventName = ""
+-- Заголовок с именем автора
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+title.BackgroundTransparency = 0.3
+title.BorderSizePixel = 0
+title.Text = "  Чат (RAGE mode) — by tensor0101 💖"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Font = Enum.Font.GothamSemibold
+title.TextSize = 16
+title.Parent = frame
 
--- Поиск всех RemoteEvent и RemoteFunction (во всех сервисах)
-local AllRemotes = {}
-local function RefreshRemotes()
-    AllRemotes = {}
-    local services = {
-        game:GetService("ReplicatedStorage"),
-        game:GetService("Workspace"),
-        game:GetService("Players"),
-        game:GetService("Lighting"),
-        game:GetService("ServerScriptService"),
-        game:GetService("ServerStorage")
-    }
-    for _, service in ipairs(services) do
-        for _, child in ipairs(service:GetChildren()) do
-            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
-                table.insert(AllRemotes, child)
-            end
-        end
-    end
-end
-RefreshRemotes()
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = title
 
--- Автообновление ремоутов
-game:GetService("ReplicatedStorage").ChildAdded:Connect(function(c)
-    if c:IsA("RemoteEvent") or c:IsA("RemoteFunction") then table.insert(AllRemotes, c) end
+-- Кнопка закрытия
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -30, 0, 0)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeBtn.BackgroundTransparency = 0.3
+closeBtn.BorderSizePixel = 0
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.TextSize = 18
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.Parent = frame
+
+closeBtn.MouseButton1Click:Connect(function()
+    gui:Destroy()
 end)
 
--- Функция флинга (мультиметод)
-local function fling(target)
-    if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = target.Character.HumanoidRootPart
-    local power = _G.FlingPower
+-- Область чата
+local chatList = Instance.new("ScrollingFrame")
+chatList.Size = UDim2.new(1, -20, 1, -110) -- поднял, чтобы освободить место для надписи
+chatList.Position = UDim2.new(0, 10, 0, 40)
+chatList.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+chatList.BackgroundTransparency = 0.2
+chatList.BorderSizePixel = 0
+chatList.CanvasSize = UDim2.new(0, 0, 0, 0)
+chatList.ScrollBarThickness = 8
+chatList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+chatList.Parent = frame
 
-    -- Генерация аргументов в зависимости от метода
-    local args_list = {}
-    if _G.FlingMethod == "Vector" then
-        args_list = {
-            {hrp, Vector3.new(power, power, power)},
-            {hrp, CFrame.new(hrp.Position + Vector3.new(power, power, power))},
-            {hrp, power}
-        }
-    elseif _G.FlingMethod == "Velocity" then
-        args_list = {
-            {hrp, Vector3.new(power*100, power*100, power*100)},
-            {hrp, Vector3.new(power*50, power*1000, power*50)},
-            {hrp, hrp.Velocity + Vector3.new(power*100, power*100, power*100)}
-        }
-    elseif _G.FlingMethod == "BodyVelocity" then
-        local bv = Instance.new("BodyVelocity")
-        bv.Velocity = Vector3.new(power*100, power*100, power*100)
-        args_list = {{hrp, bv}}
-    else -- Custom
-        args_list = {{hrp, Vector3.new(power, power, power)}}
-    end
+local listCorner = Instance.new("UICorner")
+listCorner.CornerRadius = UDim.new(0, 6)
+listCorner.Parent = chatList
 
-    -- Отправка во все ремоты всеми возможными аргументами
-    for _, event in ipairs(AllRemotes) do
-        for _, args in ipairs(args_list) do
-            pcall(function()
-                if event:IsA("RemoteEvent") then
-                    event:FireServer(unpack(args))
-                else
-                    event:InvokeServer(unpack(args))
-                end
-            end)
-        end
-    end
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 5)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+layout.VerticalAlignment = Enum.VerticalAlignment.Top
+layout.Parent = chatList
 
-    -- Если указано кастомное событие
-    if _G.CustomEventName ~= "" then
-        local customEvent = game:GetService("ReplicatedStorage"):FindFirstChild(_G.CustomEventName)
-        if customEvent and (customEvent:IsA("RemoteEvent") or customEvent:IsA("RemoteFunction")) then
-            for _, args in ipairs(args_list) do
-                pcall(function()
-                    if customEvent:IsA("RemoteEvent") then
-                        customEvent:FireServer(unpack(args))
-                    else
-                        customEvent:InvokeServer(unpack(args))
-                    end
-                end)
-            end
-        end
+-- Поле ввода
+local inputBox = Instance.new("TextBox")
+inputBox.Size = UDim2.new(1, -90, 0, 30)
+inputBox.Position = UDim2.new(0, 10, 1, -70)
+inputBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+inputBox.BackgroundTransparency = 0.2
+inputBox.BorderSizePixel = 0
+inputBox.PlaceholderText = "Введите сообщение (без ограничений)..."
+inputBox.Text = ""
+inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+inputBox.TextSize = 14
+inputBox.Font = Enum.Font.Gotham
+inputBox.ClearTextOnFocus = false
+inputBox.Parent = frame
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 6)
+inputCorner.Parent = inputBox
+
+-- Кнопка отправки
+local sendBtn = Instance.new("TextButton")
+sendBtn.Size = UDim2.new(0, 70, 0, 30)
+sendBtn.Position = UDim2.new(1, -80, 1, -70)
+sendBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 200)
+sendBtn.BackgroundTransparency = 0.2
+sendBtn.BorderSizePixel = 0
+sendBtn.Text = "Отправить"
+sendBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+sendBtn.TextSize = 14
+sendBtn.Font = Enum.Font.GothamSemibold
+sendBtn.Parent = frame
+
+local sendCorner = Instance.new("UICorner")
+sendCorner.CornerRadius = UDim.new(0, 6)
+sendCorner.Parent = sendBtn
+
+-- Надпись с автором и дискордом внизу
+local creditLabel = Instance.new("TextLabel")
+creditLabel.Size = UDim2.new(1, -20, 0, 20)
+creditLabel.Position = UDim2.new(0, 10, 1, -30)
+creditLabel.BackgroundTransparency = 1
+creditLabel.Text = "Создатель: tensor0101 (Discord: tensor0101) 💖"
+creditLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+creditLabel.TextSize = 12
+creditLabel.Font = Enum.Font.Gotham
+creditLabel.TextXAlignment = Enum.TextXAlignment.Center
+creditLabel.Parent = frame
+
+local function addMessage(text)
+    local msg = Instance.new("TextLabel")
+    msg.Size = UDim2.new(1, -10, 0, 20)
+    msg.BackgroundTransparency = 1
+    msg.Text = text
+    msg.TextColor3 = Color3.fromRGB(255, 255, 255)
+    msg.TextSize = 14
+    msg.Font = Enum.Font.Gotham
+    msg.TextXAlignment = Enum.TextXAlignment.Left
+    msg.Parent = chatList
+end
+
+local function sendMessage()
+    local text = inputBox.Text
+    if text ~= "" then
+        addMessage(player.Name .. ": " .. text)
+        inputBox.Text = ""
     end
 end
 
--- Вкладки
-local MainTab = Window:AddTab({ Title = "Main", Icon = "home" })
-local PlayersTab = Window:AddTab({ Title = "Players", Icon = "users" })
-local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "settings" })
-
--- Параграф с информацией
-MainTab:AddParagraph({
-    Title = "Fling GUI",
-    Content = "Сделано tensor0101\nФлинг во все ремоты всеми способами"
-})
-
--- Main
-MainTab:AddButton({
-    Title = "Fling All",
-    Description = "Кинуть всех игроков",
-    Callback = function()
-        for _, plr in ipairs(game.Players:GetPlayers()) do
-            if plr ~= game.Players.LocalPlayer then
-                fling(plr)
-            end
-        end
+sendBtn.MouseButton1Click:Connect(sendMessage)
+inputBox.FocusLost:Connect(function(enter)
+    if enter then
+        sendMessage()
     end
-})
+end)
 
-MainTab:AddToggle("AutoFling", {
-    Title = "Auto Fling",
-    Description = "Автоматический флинг",
-    Default = false,
-    Callback = function(val)
-        _G.AutoFling = val
-        if val then
-            task.spawn(function()
-                while _G.AutoFling do
-                    for _, plr in ipairs(game.Players:GetPlayers()) do
-                        if plr ~= game.Players.LocalPlayer then
-                            fling(plr)
-                        end
-                    end
-                    task.wait(0.05)
-                end
-            end)
-        end
-    end
-})
-
-MainTab:AddButton({
-    Title = "Stop Auto Fling",
-    Description = "Остановить автоматический флинг",
-    Callback = function()
-        _G.AutoFling = false
-    end
-})
-
--- Players
-local PlayersSection = PlayersTab:AddSection("Выбор цели")
-
-local playerDropdown = PlayersSection:AddDropdown("PlayerDropdown", {
-    Title = "Выбери игрока",
-    Values = {},
-    Multi = false,
-    Default = "",
-    Description = "Игрок для флинга",
-    Callback = function(val)
-        _G.Selected = game.Players:FindFirstChild(val)
-    end
-})
-
-local function updatePlayerList()
-    local list = {}
-    for _, plr in ipairs(game.Players:GetPlayers()) do
-        if plr ~= game.Players.LocalPlayer then
-            table.insert(list, plr.Name)
-        end
-    end
-    playerDropdown:SetValues(list)
-end
-updatePlayerList()
-
-PlayersSection:AddButton({
-    Title = "Fling Selected",
-    Description = "Кинуть выбранного игрока",
-    Callback = function()
-        if _G.Selected then
-            fling(_G.Selected)
-        end
-    end
-})
-
-PlayersSection:AddButton({
-    Title = "Refresh List",
-    Description = "Обновить список игроков",
-    Callback = updatePlayerList
-})
-
--- Settings
-local SettingsSection = SettingsTab:AddSection("Настройки флинга")
-
-SettingsSection:AddDropdown("FlingMethod", {
-    Title = "Метод",
-    Values = { "Vector", "Velocity", "BodyVelocity", "Custom" },
-    Default = "Vector",
-    Description = "Способ флинга",
-    Callback = function(val)
-        _G.FlingMethod = val
-    end
-})
-
-SettingsSection:AddSlider("FlingPower", {
-    Title = "Мощность",
-    Description = "Сила флинга",
-    Default = 9999,
-    Min = 1000,
-    Max = 100000,
-    Rounding = 0,
-    Callback = function(val)
-        _G.FlingPower = val
-    end
-})
-
-SettingsSection:AddInput("CustomEvent", {
-    Title = "Кастомное событие",
-    Description = "Название RemoteEvent (если не находит автоматически)",
-    Default = "",
-    Placeholder = "Например: MainEvent",
-    Numeric = false,
-    Finished = false,
-    Callback = function(val)
-        _G.CustomEventName = val
-    end
-})
-
-SettingsSection:AddButton({
-    Title = "Refresh Remotes",
-    Description = "Пересканировать все удалённые события",
-    Callback = RefreshRemotes
-})
-
-SettingsSection:AddButton({
-    Title = "Destroy GUI",
-    Description = "Уничтожить окно",
-    Callback = function()
-        Window:Destroy()
-    end
-})
-
--- Обновление списка игроков при изменениях
-game.Players.PlayerAdded:Connect(updatePlayerList)
-game.Players.PlayerRemoving:Connect(updatePlayerList)
-
--- Настройки сохранения (опционально)
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:IgnoreThemeSettings()
-InterfaceManager:SetFolder("FlingGUI")
-SaveManager:SetFolder("FlingGUI/specific")
-InterfaceManager:BuildInterfaceSection(SettingsTab)
-SaveManager:BuildConfigSection(SettingsTab)
-
-Window:SelectTab(1)
-
-print("Fling GUI by tensor0101 (Fluent) загружен. Если не флингует — иди в другие игры.")
+addMessage("Добро пожаловать. Чат без цензуры от tensor0101.")
